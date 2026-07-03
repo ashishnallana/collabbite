@@ -1,0 +1,61 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Session {
+  id           String        @id @default(uuid())
+  hostId       String        // Maps to Swiggy User ID or phone
+  address      String        // Serialized address object from MCP
+  status       SessionStatus @default(WAITING)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  
+  participants Participant[]
+  items        CartItem[]
+}
+
+enum SessionStatus {
+  WAITING
+  ORDERING
+  COMPLETED
+}
+
+model Participant {
+  id        String   @id @default(uuid())
+  nickname  String
+  role      Role     @default(GUEST)
+  isReady   Boolean  @default(false)
+  joinedAt  DateTime @default(now())
+  
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  
+  items     CartItem[]
+}
+
+enum Role {
+  HOST
+  GUEST
+}
+
+model CartItem {
+  id            String   @id @default(uuid())
+  restaurantId  String   // From Swiggy
+  restaurantName String
+  itemId        String   // From Swiggy
+  itemName      String
+  price         Float
+  quantity      Int      @default(1)
+  customizations String? // JSON string of customizations selected
+  addedAt       DateTime @default(now())
+
+  participantId String
+  participant   Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  sessionId     String
+  session       Session     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
