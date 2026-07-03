@@ -3,7 +3,9 @@ import * as sessionService from '../services/session.service';
 
 export const getAddresses = async (req: Request, res: Response) => {
   try {
-    const addresses = await sessionService.getUserAddresses();
+    const { swiggyToken } = req.query;
+    if (!swiggyToken) throw new Error("swiggyToken is required");
+    const addresses = await sessionService.getUserAddresses(String(swiggyToken));
     res.status(200).json({ success: true, data: addresses });
   } catch (error: any) {
     res.status(400).json({ success: false, message: error.message });
@@ -12,8 +14,11 @@ export const getAddresses = async (req: Request, res: Response) => {
 
 export const createSession = async (req: Request, res: Response) => {
   try {
-    const { hostId, address } = req.body;
-    const session = await sessionService.initializeSession(hostId, address);
+    const { hostId, address, swiggyToken } = req.body;
+    if (!hostId || !address || !swiggyToken) {
+      return res.status(400).json({ success: false, message: "Missing required fields (hostId, address, swiggyToken)" });
+    }
+    const session = await sessionService.initializeSession(hostId, address, swiggyToken);
     res.status(201).json({ success: true, data: session });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });

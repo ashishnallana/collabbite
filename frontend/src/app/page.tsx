@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
-import { MapPin, Pizza, Users } from 'lucide-react';
+import { MapPin, Pizza, Users, LogIn } from 'lucide-react';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -14,39 +14,96 @@ export default function Home() {
   const [nickname, setNickname] = useState('');
 
   // Host state
+  const [hostName, setHostName] = useState('');
   const [addresses, setAddresses] = useState<any[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState('');
-  const [fetchingAddresses, setFetchingAddresses] = useState(false);
+  const [authComplete, setAuthComplete] = useState(false);
 
-  const fetchAddresses = async () => {
-    setFetchingAddresses(true);
+  useEffect(() => {
+    // Check URL for auth success and token
+    const params = new URLSearchParams(window.location.search);
+    const authSuccess = params.get('authSuccess');
+    const token = params.get('token');
+    const returnedHostId = params.get('hostId');
+
+    if (authSuccess === 'true' && token && returnedHostId) {
+      localStorage.setItem('swiggyToken', token);
+      localStorage.setItem('hostId', returnedHostId);
+      
+      // Clean up URL without triggering reload
+      router.replace('/');
+      
+      setHostName(returnedHostId);
+      setAuthComplete(true);
+      fetchAddresses(token);
+    } else {
+      // Check if already authenticated in this browser
+      const savedToken = localStorage.getItem('swiggyToken');
+      const savedHost = localStorage.getItem('hostId');
+      if (savedToken && savedHost) {
+        setHostName(savedHost);
+        setAuthComplete(true);
+      }
+    }
+  }, []);
+
+  const startSwiggyLogin = async () => {
+    if (!hostName) {
+      alert("Please enter your name first!");
+      return;
+    }
+    
+    // Open immediately before async call to avoid popup blocker
+    const newWindow = window.open('', '_self'); // Open in same window is better for OAuth redirects!
+    
+    setLoading(true);
     try {
-      const res = await axios.get(`${API_URL}/sessions/addresses`);
+      const res = await axios.post(`${API_URL}/auth/login`, { hostId: hostName });
+      if (res.data.success && res.data.url) {
+        if (newWindow) {
+          newWindow.location.href = res.data.url;
+        } else {
+          window.location.href = res.data.url;
+        }
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to start login');
+      setLoading(false);
+    }
+  };
+
+  const fetchAddresses = async (token?: string) => {
+    const swiggyToken = token || localStorage.getItem('swiggyToken');
+    if (!swiggyToken) return;
+
+    try {
+      const res = await axios.get(`${API_URL}/sessions/addresses?swiggyToken=${encodeURIComponent(swiggyToken)}`);
       if (res.data.success && res.data.data.length > 0) {
         setAddresses(res.data.data);
         setSelectedAddressId(res.data.data[0].id);
       }
     } catch (err: any) {
-      console.error(err);
-      if (err.response?.data?.message) {
-        alert(err.response.data.message);
-      } else {
-        alert('Failed to fetch addresses. Make sure the backend is running and you are logged into Swiggy CLI.');
-      }
-    } finally {
-      setFetchingAddresses(false);
+      alert(err.response?.data?.message || 'Failed to fetch addresses.');
+      // If token is invalid, log them out
+      localStorage.removeItem('swiggyToken');
+      setAuthComplete(false);
     }
   };
 
   const createSession = async () => {
-    if (!selectedAddressId) return;
+    const swiggyToken = localStorage.getItem('swiggyToken');
+    if (!selectedAddressId || !hostName || !swiggyToken) return;
+    
     setLoading(true);
     try {
       const res = await axios.post(`${API_URL}/sessions/create`, { 
-        hostId: 'host-123',
-        address: selectedAddressId
+        hostId: hostName,
+        address: selectedAddressId,
+        swiggyToken
       });
       if (res.data.success) {
+        localStorage.setItem('participantId', res.data.data.participants[0].id);
+        localStorage.setItem('nickname', hostName);
         router.push(`/session/${res.data.data.id}`);
       }
     } catch (err) {
@@ -93,31 +150,61 @@ export default function Home() {
 
       <div className="card">
         <h2>Host a Session</h2>
-        <p>Start a new group order and invite friends.</p>
+        <p>Login to Swiggy to start a new group order.</p>
         
-        {addresses.length === 0 ? (
-          <button className="btn btn-primary" onClick={fetchAddresses} disabled={fetchingAddresses}>
-            {fetchingAddresses ? <div className="spinner"></div> : <><MapPin size={20} /> Fetch My Swiggy Addresses</>}
-          </button>
+        {!authComplete ? (
+          <div className="flex-col">
+            <input 
+              type="text" 
+              className="input" 
+              placeholder="Your Name (e.g. John)" 
+              value={hostName}
+              onChange={(e) => setHostName(e.target.value)}
+            />
+            <button className="btn btn-primary" onClick={startSwiggyLogin} disabled={loading || !hostName}>
+              {loading ? <div className="spinner"></div> : <><LogIn size={20} /> Login with Swiggy</>}
+            </button>
+          </div>
         ) : (
           <div className="flex-col">
-            <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Select delivery address:</label>
-            <select 
-              className="input" 
-              value={selectedAddressId} 
-              onChange={(e) => setSelectedAddressId(e.target.value)}
-              style={{ padding: '0.75rem' }}
-            >
-              {addresses.map(addr => (
-                <option key={addr.id} value={addr.id}>
-                  {addr.addressTag ? `[${addr.addressTag}] ` : ''} 
-                  {addr.addressLine.substring(0, 40)}...
-                </option>
-              ))}
-            </select>
-            <button className="btn btn-primary" onClick={createSession} disabled={loading}>
-              {loading ? <div className="spinner"></div> : <><Pizza size={20} /> Start Session</>}
-            </button>
+            <div style={{ padding: '1rem', background: 'var(--surface-light)', borderRadius: 'var(--radius-md)', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <p style={{ margin: 0, color: 'var(--success)' }}>✔ Authenticated as {hostName}</p>
+              <button 
+                className="btn btn-secondary" 
+                style={{ padding: '0.25rem 0.5rem', fontSize: '0.8rem' }}
+                onClick={() => {
+                  localStorage.removeItem('swiggyToken');
+                  setAuthComplete(false);
+                }}
+              >
+                Logout
+              </button>
+            </div>
+            {addresses.length === 0 ? (
+              <button className="btn btn-secondary" onClick={() => fetchAddresses()}>
+                <MapPin size={20} /> Fetch Addresses
+              </button>
+            ) : (
+              <>
+                <label style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Select delivery address:</label>
+                <select 
+                  className="input" 
+                  value={selectedAddressId} 
+                  onChange={(e) => setSelectedAddressId(e.target.value)}
+                  style={{ padding: '0.75rem' }}
+                >
+                  {addresses.map(addr => (
+                    <option key={addr.id} value={addr.id}>
+                      {addr.addressTag ? `[${addr.addressTag}] ` : ''} 
+                      {addr.addressLine.substring(0, 40)}...
+                    </option>
+                  ))}
+                </select>
+                <button className="btn btn-primary" onClick={createSession} disabled={loading}>
+                  {loading ? <div className="spinner"></div> : <><Pizza size={20} /> Start Session</>}
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>

@@ -15,8 +15,9 @@ export const searchRestaurants = async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: "Session not found" });
     }
 
-    const addressId = JSON.parse(session.address).id;
-    const data = await restaurantService.searchRestaurants(addressId, String(query), Number(offset) || 0);
+    const addressJson = JSON.parse(session.address);
+    const addressId = addressJson.id;
+    const data = await restaurantService.searchRestaurants(addressJson.hostToken, addressId, String(query), Number(offset) || 0);
     res.status(200).json({ success: true, data });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
@@ -36,8 +37,9 @@ export const getRestaurantMenu = async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: "Session not found" });
     }
 
-    const addressId = JSON.parse(session.address).id;
-    const data = await restaurantService.getRestaurantMenu(addressId, restaurantId);
+    const addressJson = JSON.parse(session.address);
+    const addressId = addressJson.id;
+    const data = await restaurantService.getRestaurantMenu(addressJson.hostToken, addressId, restaurantId);
     res.status(200).json({ success: true, data });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });

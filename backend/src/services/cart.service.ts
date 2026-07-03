@@ -73,7 +73,8 @@ export const checkoutSession = async (sessionId: string) => {
   // Assuming all items are from the same restaurant for checkout
   const restaurantId = session.items[0].restaurantId;
   const restaurantName = session.items[0].restaurantName;
-  const addressId = JSON.parse(session.address).id;
+  const addressJson = JSON.parse(session.address);
+  const addressId = addressJson.id;
 
   // Format cart items for MCP
   const cartItemsFormatted = session.items.map(item => {
@@ -103,9 +104,10 @@ export const checkoutSession = async (sessionId: string) => {
     addressId,
     restaurantName,
     cartItems: cartItemsFormatted
-  });
+  }, addressJson.hostToken);
 
-  const cartData = JSON.parse(updateRes.content[0].text).data;
+  const parsed = JSON.parse(updateRes.content[0].text as string);
+  const cartData = parsed.data || parsed;
 
   // Update session status
   await prisma.session.update({

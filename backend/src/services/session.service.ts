@@ -1,54 +1,66 @@
 import { prisma } from '../utils/prisma';
 import { swiggyService } from './mcp.service';
 
-export const getUserAddresses = async () => {
+export const getUserAddresses = async (token: string) => {
   try {
-    const addressesResponse = await swiggyService.callTool('get_addresses', {});
-    const addressData = JSON.parse(addressesResponse.content[0].text);
-    const addresses = addressData.data?.addresses || [];
+    const addressesResponse = await swiggyService.callTool('get_addresses', {}, token);
+    const addressData = JSON.parse(addressesResponse.content[0].text as string);
+    let addresses = [];
+    if (Array.isArray(addressData)) {
+      addresses = addressData;
+    } else {
+      addresses = addressData.data?.addresses || addressData.addresses || [];
+    }
     
-    if (!addresses || addresses.length === 0) {
-      throw new Error("No addresses found for this Swiggy account. Please ensure you are logged in to Swiggy CLI.");
+    if (addresses.length === 0) {
+      throw new Error("No addresses found for this Swiggy account. Add an address in Swiggy first.");
     }
     
     return addresses;
   } catch (err: any) {
-    if (err.message.includes("CLI Error")) {
-      throw new Error("You are not logged into Swiggy CLI. Please authenticate to host a session.");
-    }
+    console.error("Fetch addresses error:", err.message);
     throw new Error(`Failed to fetch addresses: ${err.message}`);
   }
 };
 
-export const initializeSession = async (hostId: string, addressId?: string) => {
+export const initializeSession = async (hostId: string, addressId?: string, swiggyToken?: string) => {
   // If no addressId provided, fetch the default address using MCP
   let selectedAddressId = addressId;
-  let fullAddressDetails = "";
+  let fullAddressDetails = "{}";
 
-  try {
-    const addressesResponse = await swiggyService.callTool('get_addresses', {});
-    const addressData = JSON.parse(addressesResponse.content[0].text);
+  if (swiggyToken) {
+    try {
+      const addressesResponse = await swiggyService.callTool('get_addresses', {}, swiggyToken);
+      const addressData = JSON.parse(addressesResponse.content[0].text as string);
     
-    const addresses = addressData.data?.addresses || [];
+      let addresses = [];
+      if (Array.isArray(addressData)) {
+        addresses = addressData;
+      } else {
+        addresses = addressData.data?.addresses || addressData.addresses || [];
+      }
     
-    if (!addresses || addresses.length === 0) {
-      throw new Error("No addresses found for this Swiggy account");
+      if (addresses.length === 0) {
+        throw new Error("No addresses found for this Swiggy account. Add an address in Swiggy first.");
+      }
+
+      // If specific addressId is requested, find it, else use the first one
+      const addressObj = selectedAddressId 
+        ? addresses.find((a: any) => a.id === selectedAddressId)
+        : addresses[0];
+
+      if (!addressObj) {
+        throw new Error("Specified address not found");
+      }
+
+      selectedAddressId = addressObj.id;
+      
+      // Inject hostToken so guests can use it!
+      const addrObjWithToken = { ...addressObj, hostToken: swiggyToken };
+      fullAddressDetails = JSON.stringify(addrObjWithToken); // Serialize for DB storage
+    } catch (err: any) {
+      console.log("Failed to fetch address details for session", err.message);
     }
-
-    // If specific addressId is requested, find it, else use the first one
-    const addressObj = selectedAddressId 
-      ? addresses.find((a: any) => a.id === selectedAddressId)
-      : addresses[0];
-
-    if (!addressObj) {
-      throw new Error("Specified address not found");
-    }
-
-    selectedAddressId = addressObj.id;
-    fullAddressDetails = JSON.stringify(addressObj); // Serialize for DB storage
-
-  } catch (err: any) {
-    throw new Error(`Failed to fetch address from Swiggy: ${err.message}`);
   }
 
   // Create session in database
@@ -58,7 +70,7 @@ export const initializeSession = async (hostId: string, addressId?: string) => {
       address: fullAddressDetails, // Store full serialized address object
       participants: {
         create: {
-          nickname: 'Host',
+          nickname: hostId,
           role: 'HOST',
           isReady: false
         }

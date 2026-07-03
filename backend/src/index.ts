@@ -18,6 +18,7 @@ const io = new Server(server, {
 import sessionRoutes from './routes/session.routes';
 import restaurantRoutes from './routes/restaurant.routes';
 import cartRoutes from './routes/cart.routes';
+import authRoutes from './routes/auth.routes';
 
 app.use(cors());
 app.use(express.json());
@@ -26,6 +27,7 @@ app.use(express.json());
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/restaurants', restaurantRoutes);
 app.use('/api/cart', cartRoutes);
+app.use('/api/auth', authRoutes);
 
 
 // Basic health check
