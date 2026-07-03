@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createSession, joinSession, getSession, getAddresses } from '../controllers/session.controller';
+import { createSession, joinSession, getSession, getAddresses, toggleReady } from '../controllers/session.controller';
 
 const router = Router();
 
@@ -7,6 +7,7 @@ const router = Router();
 router.get('/addresses', getAddresses);
 router.post('/create', createSession);
 router.post('/join', joinSession);
+router.post('/ready', toggleReady);
 router.get('/:id', getSession);
 
 export default router;

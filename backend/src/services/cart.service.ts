@@ -46,7 +46,14 @@ export const addItemToCart = async (
   });
 };
 
-export const removeItemFromCart = async (cartItemId: string) => {
+export const removeItemFromCart = async (cartItemId: string, requestingParticipantId?: string) => {
+  const item = await prisma.cartItem.findUnique({ where: { id: cartItemId } });
+  if (!item) throw new Error("Item not found");
+
+  if (requestingParticipantId && requestingParticipantId !== item.participantId) {
+    throw new Error("Unauthorized to remove other participant's items");
+  }
+
   return await prisma.cartItem.delete({
     where: { id: cartItemId }
   });

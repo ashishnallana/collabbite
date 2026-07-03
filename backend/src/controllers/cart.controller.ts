@@ -22,7 +22,8 @@ export const addItem = async (req: Request, res: Response) => {
 export const removeItem = async (req: Request, res: Response) => {
   try {
     const { cartItemId } = req.params;
-    await cartService.removeItemFromCart(cartItemId);
+    const { participantId } = req.query;
+    await cartService.removeItemFromCart(cartItemId, participantId as string);
     res.status(200).json({ success: true, message: "Item removed" });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });

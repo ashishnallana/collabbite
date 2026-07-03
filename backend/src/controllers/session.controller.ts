@@ -47,3 +47,16 @@ export const getSession = async (req: Request, res: Response) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+export const toggleReady = async (req: Request, res: Response) => {
+  try {
+    const { participantId } = req.body;
+    if (!participantId) {
+      return res.status(400).json({ success: false, message: "participantId is required" });
+    }
+    const updated = await sessionService.toggleParticipantReady(participantId);
+    res.status(200).json({ success: true, data: updated });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

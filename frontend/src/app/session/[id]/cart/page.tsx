@@ -3,7 +3,7 @@
 import { useEffect, useState, use } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
-import { ArrowLeft, Trash2, CreditCard } from 'lucide-react';
+import { ArrowLeft, Trash2, CreditCard, CheckCircle } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
 
 const API_URL = 'http://localhost:5000/api';
@@ -13,22 +13,27 @@ export default function CartPage({ params }: { params: Promise<{ id: string }> }
   const router = useRouter();
   const { id: sessionId } = use(params);
   
+  const [session, setSession] = useState<any>(null);
   const [cartItems, setCartItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [checkingOut, setCheckingOut] = useState(false);
   const [socket, setSocket] = useState<Socket | null>(null);
   
-  const isHost = !localStorage.getItem('participantId'); // Rough check for MVP
+  const [isHost, setIsHost] = useState(false);
+  const [myParticipantId, setMyParticipantId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchCart();
+    const pId = localStorage.getItem('participantId');
+    setMyParticipantId(pId);
+    
+    fetchData();
 
     const newSocket = io(SOCKET_URL);
     setSocket(newSocket);
 
     newSocket.emit('join-session', sessionId);
     newSocket.on('cart-updated', () => {
-      fetchCart();
+      fetchData();
     });
 
     return () => {
@@ -36,14 +41,28 @@ export default function CartPage({ params }: { params: Promise<{ id: string }> }
     };
   }, [sessionId]);
 
-  const fetchCart = async () => {
+  const fetchData = async () => {
     try {
-      const res = await axios.get(`${API_URL}/cart/${sessionId}`);
-      if (res.data.success) {
-        setCartItems(res.data.data);
+      const [cartRes, sessionRes] = await Promise.all([
+        axios.get(`${API_URL}/cart/${sessionId}`),
+        axios.get(`${API_URL}/sessions/${sessionId}`)
+      ]);
+      
+      if (cartRes.data.success) {
+        setCartItems(cartRes.data.data);
+      }
+      if (sessionRes.data.success) {
+        const sessionData = sessionRes.data.data;
+        setSession(sessionData);
+        // Correctly detect host by checking participant role
+        const pId = localStorage.getItem('participantId');
+        const myP = sessionData.participants?.find((p: any) => p.id === pId);
+        if (myP && myP.role === 'HOST') {
+          setIsHost(true);
+        }
       }
     } catch (err) {
-      console.error("Failed to fetch cart", err);
+      console.error("Failed to fetch data", err);
     } finally {
       setLoading(false);
     }
@@ -51,30 +70,30 @@ export default function CartPage({ params }: { params: Promise<{ id: string }> }
 
   const removeItem = async (itemId: string) => {
     try {
-      await axios.delete(`${API_URL}/cart/${itemId}`);
+      const qs = myParticipantId ? `?participantId=${myParticipantId}` : '';
+      await axios.delete(`${API_URL}/cart/${itemId}${qs}`);
       socket?.emit('cart-updated', sessionId);
-      fetchCart();
-    } catch (err) {
+      fetchData();
+    } catch (err: any) {
       console.error(err);
-      alert('Failed to remove item');
+      alert(err.response?.data?.message || 'Failed to remove item');
+    }
+  };
+
+  const toggleReady = async () => {
+    if (!myParticipantId) return; // Host is always ready or doesn't need to click
+    try {
+      await axios.post(`${API_URL}/sessions/ready`, { participantId: myParticipantId });
+      socket?.emit('cart-updated', sessionId);
+      fetchData();
+    } catch (err: any) {
+      alert('Failed to update status');
     }
   };
 
   const handleCheckout = async () => {
     if (!isHost) return;
-    setCheckingOut(true);
-    try {
-      const res = await axios.post(`${API_URL}/cart/checkout`, { sessionId });
-      if (res.data.success) {
-        alert('Cart successfully pushed to Swiggy! Open Swiggy app to pay.');
-        router.push(`/session/${sessionId}`);
-      }
-    } catch (err) {
-      console.error(err);
-      alert('Checkout failed. Make sure all items are from the same restaurant.');
-    } finally {
-      setCheckingOut(false);
-    }
+    router.push(`/session/${sessionId}/checkout`);
   };
 
   if (loading) return <div className="container justify-center flex-col text-center"><div className="spinner mx-auto mb-4" />Loading Cart...</div>;
@@ -83,13 +102,19 @@ export default function CartPage({ params }: { params: Promise<{ id: string }> }
   const groupedCart = cartItems.reduce((acc: any, item: any) => {
     const pId = item.participantId;
     const name = item.participant?.nickname || 'Host';
-    if (!acc[pId]) acc[pId] = { name, items: [], total: 0 };
+    if (!acc[pId]) acc[pId] = { name, participantId: pId, items: [], total: 0 };
     acc[pId].items.push(item);
     acc[pId].total += item.price * item.quantity;
     return acc;
   }, {});
 
   const grandTotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+  // Check if all guests are ready
+  const participants = session?.participants || [];
+  const guests = participants.filter((p: any) => p.role !== 'HOST');
+  const allGuestsReady = guests.length > 0 && guests.every((p: any) => p.isReady);
+  const myParticipant = participants.find((p: any) => p.id === myParticipantId);
 
   return (
     <div className="flex-col" style={{ flex: 1 }}>
@@ -106,35 +131,44 @@ export default function CartPage({ params }: { params: Promise<{ id: string }> }
             Cart is empty. Invite friends or add some food!
           </div>
         ) : (
-          Object.values(groupedCart).map((group: any, idx: number) => (
-            <div key={idx} className="card mb-4" style={{ padding: 0, overflow: 'hidden' }}>
-              <div style={{ background: 'var(--surface-light)', padding: '1rem', borderBottom: '1px solid var(--border)' }} className="flex-row justify-between">
-                <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', color: '#fff' }}>
-                    {group.name.charAt(0).toUpperCase()}
-                  </div>
-                  {group.name}&apos;s Order
-                </h3>
-                <span style={{ fontWeight: 'bold' }}>₹{group.total}</span>
-              </div>
-              <div style={{ padding: '1rem' }}>
-                {group.items.map((item: any) => (
-                  <div key={item.id} className="list-item" style={{ padding: '0.5rem 0' }}>
-                    <div className="flex-col" style={{ gap: 0 }}>
-                      <span>{item.quantity}x {item.itemName}</span>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{item.restaurantName}</span>
+          Object.values(groupedCart).map((group: any, idx: number) => {
+            const participantData = participants.find((p: any) => p.id === group.participantId);
+            const isReady = participantData?.isReady;
+            const canEdit = isHost || group.participantId === myParticipantId;
+
+            return (
+              <div key={idx} className="card mb-4" style={{ padding: 0, overflow: 'hidden' }}>
+                <div style={{ background: 'var(--surface-light)', padding: '1rem', borderBottom: '1px solid var(--border)' }} className="flex-row justify-between">
+                  <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', color: '#fff' }}>
+                      {group.name.charAt(0).toUpperCase()}
                     </div>
-                    <div className="flex-row">
-                      <span>₹{item.price * item.quantity}</span>
-                      <button className="btn-icon" onClick={() => removeItem(item.id)}>
-                        <Trash2 size={16} color="var(--danger)" />
-                      </button>
+                    {group.name}&apos;s Order
+                    {isReady && <CheckCircle size={16} color="var(--primary)" />}
+                  </h3>
+                  <span style={{ fontWeight: 'bold' }}>₹{group.total}</span>
+                </div>
+                <div style={{ padding: '1rem' }}>
+                  {group.items.map((item: any) => (
+                    <div key={item.id} className="list-item" style={{ padding: '0.5rem 0' }}>
+                      <div className="flex-col" style={{ gap: 0 }}>
+                        <span>{item.quantity}x {item.itemName}</span>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{item.restaurantName}</span>
+                      </div>
+                      <div className="flex-row">
+                        <span>₹{item.price * item.quantity}</span>
+                        {canEdit && (
+                          <button className="btn-icon" onClick={() => removeItem(item.id)}>
+                            <Trash2 size={16} color="var(--danger)" />
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
 
         {cartItems.length > 0 && (
@@ -145,19 +179,31 @@ export default function CartPage({ params }: { params: Promise<{ id: string }> }
         )}
       </div>
 
-      <div className="glass-nav">
+      <div className="glass-nav flex-col">
+        {!isHost && (
+          <button 
+            className={`btn ${myParticipant?.isReady ? 'btn-secondary' : 'btn-primary'}`} 
+            onClick={toggleReady}
+            style={{ width: '100%', marginBottom: '0.5rem' }}
+          >
+            {myParticipant?.isReady ? <><CheckCircle size={20} /> Ready!</> : 'I am Ready'}
+          </button>
+        )}
+
         {isHost ? (
           <button 
             className="btn btn-primary" 
             onClick={handleCheckout}
-            disabled={checkingOut || cartItems.length === 0}
+            disabled={!allGuestsReady || cartItems.length === 0}
+            style={{ width: '100%' }}
           >
-            {checkingOut ? <div className="spinner" /> : <><CreditCard size={20} /> Place Order on Swiggy</>}
+            <CreditCard size={20} /> 
+            {!allGuestsReady ? 'Waiting for guests to be ready...' : 'Proceed to Checkout'}
           </button>
         ) : (
-          <button className="btn btn-secondary" disabled>
-            Waiting for Host to checkout...
-          </button>
+          <div className="text-center text-muted" style={{ fontSize: '0.9rem' }}>
+            {allGuestsReady ? 'Host is reviewing the order...' : 'Waiting for others to be ready...'}
+          </div>
         )}
       </div>
     </div>

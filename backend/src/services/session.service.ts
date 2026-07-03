@@ -115,3 +115,15 @@ export const getSessionDetails = async (sessionId: string) => {
     }
   });
 };
+
+export const toggleParticipantReady = async (participantId: string) => {
+  const participant = await prisma.participant.findUnique({
+    where: { id: participantId }
+  });
+  if (!participant) throw new Error("Participant not found");
+
+  return await prisma.participant.update({
+    where: { id: participantId },
+    data: { isReady: !participant.isReady }
+  });
+};

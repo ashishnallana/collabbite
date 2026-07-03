@@ -18,15 +18,7 @@ export default function SessionLobby({ params }: { params: Promise<{ id: string 
   const [isHost, setIsHost] = useState(false);
 
   useEffect(() => {
-    // Determine if we are the host
-    const participantId = localStorage.getItem('participantId');
-    if (!participantId) {
-      // If we created it, we don't have participantId set yet for host in localstorage, 
-      // but in real app we'd use JWT. For now, let's just assume we're host if we don't have guest participantId,
-      // actually wait, when creating we didn't save participantId. So if no participantId, we are host.
-      setIsHost(true);
-    }
-    
+    // We will determine isHost inside fetchSession
     fetchSession();
 
     const newSocket = io(SOCKET_URL);
@@ -47,12 +39,15 @@ export default function SessionLobby({ params }: { params: Promise<{ id: string 
 
   const fetchSession = async () => {
     try {
-      // We don't have a GET /api/sessions/:id route yet! Wait, I should add it to backend.
-      // For now, let's fetch cart instead as a proxy to see if it works, 
-      // or we can just show UI without full session details for MVP if backend is missing it.
-      // Wait, let's just write the frontend and assume the GET route will be added.
       const res = await axios.get(`${API_URL}/sessions/${sessionId}`);
-      setSession(res.data.data);
+      const sessionData = res.data.data;
+      setSession(sessionData);
+
+      const pId = localStorage.getItem('participantId');
+      const myP = sessionData.participants?.find((p: any) => p.id === pId);
+      if (myP && myP.role === 'HOST') {
+        setIsHost(true);
+      }
     } catch (err) {
       console.error("Failed to fetch session", err);
     } finally {
