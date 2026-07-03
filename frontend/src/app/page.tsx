@@ -4,8 +4,10 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { MapPin, Pizza, Users, LogIn } from 'lucide-react';
+import { io } from 'socket.io-client';
 
 const API_URL = 'http://localhost:5000/api';
+const SOCKET_URL = 'http://localhost:5000';
 
 export default function Home() {
   const router = useRouter();
@@ -126,6 +128,15 @@ export default function Home() {
       if (res.data.success) {
         localStorage.setItem('participantId', res.data.data.id);
         localStorage.setItem('nickname', res.data.data.nickname);
+        
+        // Notify others that a new user joined
+        const socket = io(SOCKET_URL);
+        socket.on('connect', () => {
+          socket.emit('participant-joined', joinId);
+          socket.emit('activity', { sessionId: joinId, message: `${res.data.data.nickname} just joined the session!` });
+          setTimeout(() => socket.disconnect(), 200);
+        });
+        
         router.push(`/session/${joinId}`);
       }
     } catch (err) {

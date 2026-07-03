@@ -68,10 +68,13 @@ export default function CartPage({ params }: { params: Promise<{ id: string }> }
     }
   };
 
-  const removeItem = async (itemId: string) => {
+  const removeItem = async (itemId: string, itemName: string) => {
     try {
       const qs = myParticipantId ? `?participantId=${myParticipantId}` : '';
       await axios.delete(`${API_URL}/cart/${itemId}${qs}`);
+      
+      const nickname = localStorage.getItem('nickname') || 'Someone';
+      socket?.emit('activity', { sessionId, message: `${nickname} removed ${itemName} from the cart` });
       socket?.emit('cart-updated', sessionId);
       fetchData();
     } catch (err: any) {
@@ -84,6 +87,15 @@ export default function CartPage({ params }: { params: Promise<{ id: string }> }
     if (!myParticipantId) return; // Host is always ready or doesn't need to click
     try {
       await axios.post(`${API_URL}/sessions/ready`, { participantId: myParticipantId });
+      
+      const nickname = localStorage.getItem('nickname') || 'Someone';
+      const myP = session?.participants?.find((p:any) => p.id === myParticipantId);
+      const wasReady = myP?.isReady;
+      
+      socket?.emit('activity', { 
+        sessionId, 
+        message: `${nickname} is ${wasReady ? 'not ready anymore' : 'ready to order'}!` 
+      });
       socket?.emit('cart-updated', sessionId);
       fetchData();
     } catch (err: any) {
@@ -158,7 +170,7 @@ export default function CartPage({ params }: { params: Promise<{ id: string }> }
                       <div className="flex-row">
                         <span>₹{item.price * item.quantity}</span>
                         {canEdit && (
-                          <button className="btn-icon" onClick={() => removeItem(item.id)}>
+                          <button className="btn-icon" onClick={() => removeItem(item.id, item.itemName)}>
                             <Trash2 size={16} color="var(--danger)" />
                           </button>
                         )}

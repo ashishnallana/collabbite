@@ -52,6 +52,10 @@ io.on('connection', (socket) => {
     socket.to(sessionId).emit('participant-joined');
   });
 
+  socket.on('activity', ({ sessionId, message }) => {
+    socket.to(sessionId).emit('activity', message);
+  });
+
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
   });

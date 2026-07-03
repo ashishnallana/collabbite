@@ -1,9 +1,12 @@
 'use client';
 
-import { useState, use } from 'react';
+import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { ArrowLeft, Search as SearchIcon } from 'lucide-react';
+import { io, Socket } from 'socket.io-client';
+
+const SOCKET_URL = 'http://localhost:5000';
 
 const API_URL = 'http://localhost:5000/api';
 
@@ -15,6 +18,17 @@ export default function SearchRestaurants({ params }: { params: Promise<{ id: st
   const [restaurants, setRestaurants] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [socket, setSocket] = useState<Socket | null>(null);
+
+  useEffect(() => {
+    const newSocket = io(SOCKET_URL);
+    newSocket.emit('join-session', sessionId);
+    setSocket(newSocket);
+
+    return () => {
+      newSocket.disconnect();
+    };
+  }, [sessionId]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,6 +36,9 @@ export default function SearchRestaurants({ params }: { params: Promise<{ id: st
     setLoading(true);
     setSearched(true);
     try {
+      const nickname = localStorage.getItem('nickname') || 'Someone';
+      socket?.emit('activity', { sessionId, message: `${nickname} is looking for ${query}` });
+      
       const res = await axios.get(`${API_URL}/restaurants/search`, {
         params: { sessionId, query }
       });

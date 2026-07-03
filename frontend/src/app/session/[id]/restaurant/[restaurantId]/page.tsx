@@ -57,8 +57,12 @@ export default function RestaurantMenu({ params }: { params: Promise<{ id: strin
 
       // Notify others
       const socket = io(SOCKET_URL);
-      socket.emit('cart-updated', sessionId);
-      socket.disconnect();
+      socket.on('connect', () => {
+        const nickname = localStorage.getItem('nickname') || 'Someone';
+        socket.emit('activity', { sessionId, message: `${nickname} added ${item.name} to the cart!` });
+        socket.emit('cart-updated', sessionId);
+        setTimeout(() => socket.disconnect(), 200);
+      });
 
       alert("Added to shared cart!");
     } catch (err) {
