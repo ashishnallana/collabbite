@@ -1,6 +1,25 @@
 import { prisma } from '../utils/prisma';
 import { swiggyService } from './mcp.service';
 
+export const getUserAddresses = async () => {
+  try {
+    const addressesResponse = await swiggyService.callTool('get_addresses', {});
+    const addressData = JSON.parse(addressesResponse.content[0].text);
+    const addresses = addressData.data?.addresses || [];
+    
+    if (!addresses || addresses.length === 0) {
+      throw new Error("No addresses found for this Swiggy account. Please ensure you are logged in to Swiggy CLI.");
+    }
+    
+    return addresses;
+  } catch (err: any) {
+    if (err.message.includes("CLI Error")) {
+      throw new Error("You are not logged into Swiggy CLI. Please authenticate to host a session.");
+    }
+    throw new Error(`Failed to fetch addresses: ${err.message}`);
+  }
+};
+
 export const initializeSession = async (hostId: string, addressId?: string) => {
   // If no addressId provided, fetch the default address using MCP
   let selectedAddressId = addressId;
@@ -36,7 +55,7 @@ export const initializeSession = async (hostId: string, addressId?: string) => {
   const session = await prisma.session.create({
     data: {
       hostId,
-      address: selectedAddressId, // We'll just store the ID to be used for search/cart
+      address: fullAddressDetails, // Store full serialized address object
       participants: {
         create: {
           nickname: 'Host',

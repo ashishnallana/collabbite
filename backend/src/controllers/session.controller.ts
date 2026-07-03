@@ -1,6 +1,15 @@
 import { Request, Response } from 'express';
 import * as sessionService from '../services/session.service';
 
+export const getAddresses = async (req: Request, res: Response) => {
+  try {
+    const addresses = await sessionService.getUserAddresses();
+    res.status(200).json({ success: true, data: addresses });
+  } catch (error: any) {
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
 export const createSession = async (req: Request, res: Response) => {
   try {
     const { hostId, address } = req.body;

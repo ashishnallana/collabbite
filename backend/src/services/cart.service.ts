@@ -73,7 +73,7 @@ export const checkoutSession = async (sessionId: string) => {
   // Assuming all items are from the same restaurant for checkout
   const restaurantId = session.items[0].restaurantId;
   const restaurantName = session.items[0].restaurantName;
-  const addressId = session.address;
+  const addressId = JSON.parse(session.address).id;
 
   // Format cart items for MCP
   const cartItemsFormatted = session.items.map(item => {

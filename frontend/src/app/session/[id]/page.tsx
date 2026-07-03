@@ -74,6 +74,22 @@ export default function SessionLobby({ params }: { params: Promise<{ id: string 
         <span className={`badge ${session?.status === 'ORDERING' ? 'open' : ''}`}>{session?.status || 'Waiting'}</span>
       </div>
 
+      {session?.address && (
+        <div className="card text-center mb-4" style={{ background: 'var(--surface-light)' }}>
+          <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-muted)' }}>📍 Delivery Address:</p>
+          <p style={{ margin: '0.25rem 0 0 0', fontWeight: 500 }}>
+            {(() => {
+              try {
+                const addr = JSON.parse(session.address);
+                return addr.addressTag ? `[${addr.addressTag}] ${addr.addressLine}` : addr.addressLine;
+              } catch (e) {
+                return "Address not available";
+              }
+            })()}
+          </p>
+        </div>
+      )}
+
       <div className="card text-center">
         <p>Invite friends with this code:</p>
         <h1 style={{ letterSpacing: '2px', background: 'var(--surface-light)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
