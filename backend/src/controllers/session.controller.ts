@@ -21,6 +21,7 @@ export const createSession = async (req: Request, res: Response) => {
     const session = await sessionService.initializeSession(hostId, address, swiggyToken);
     res.status(201).json({ success: true, data: session });
   } catch (error: any) {
+    console.error("Create session error:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };

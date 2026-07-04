@@ -2,6 +2,7 @@
 
 import { use } from 'react';
 import ActivityTicker from '../../../components/ActivityTicker';
+import LiveChat from '../../../components/LiveChat';
 
 export default function SessionLayout({
   children,
@@ -18,6 +19,7 @@ export default function SessionLayout({
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
         {children}
       </div>
+      <LiveChat sessionId={sessionId} />
     </div>
   );
 }

@@ -3,6 +3,9 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import http from 'http';
 import { Server } from 'socket.io';
+import cron from 'node-cron';
+import { prisma } from './utils/prisma';
+import redisClient from './utils/redis';
 
 dotenv.config();
 
@@ -39,9 +42,18 @@ app.get('/api/health', (req: Request, res: Response) => {
 io.on('connection', (socket) => {
   console.log('A user connected:', socket.id);
 
-  socket.on('join-session', (sessionId) => {
+  socket.on('join-session', async (sessionId) => {
     socket.join(sessionId);
     console.log(`User ${socket.id} joined session ${sessionId}`);
+
+    // Send chat history when joining
+    try {
+      const messages = await redisClient.lrange(`chat:${sessionId}`, 0, -1);
+      const parsedMessages = messages.map(m => JSON.parse(m));
+      socket.emit('chat-history', parsedMessages);
+    } catch (err) {
+      console.error("Error loading chat history from redis", err);
+    }
   });
 
   socket.on('cart-updated', (sessionId) => {
@@ -56,6 +68,28 @@ io.on('connection', (socket) => {
     socket.to(sessionId).emit('activity', message);
   });
 
+  socket.on('send-chat', async ({ sessionId, sender, message }) => {
+    const chatMsg = { sender, message, timestamp: new Date().toISOString() };
+    try {
+      // Store in redis
+      await redisClient.rpush(`chat:${sessionId}`, JSON.stringify(chatMsg));
+      // Set expiry to 3 hours
+      await redisClient.expire(`chat:${sessionId}`, 3 * 60 * 60);
+      
+      // Broadcast to room
+      io.to(sessionId).emit('chat-message', chatMsg);
+    } catch (err) {
+      console.error("Error saving chat", err);
+    }
+  });
+
+  socket.on('reaction', ({ sessionId, emoji }) => {
+    // Generate a unique ID for the animation
+    const id = Date.now().toString() + Math.random().toString();
+    // Broadcast to everyone including sender
+    io.to(sessionId).emit('reaction', { emoji, id });
+  });
+
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
   });
@@ -65,4 +99,23 @@ const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+});
+
+// Run cleanup job every 10 minutes to delete expired sessions from DB
+cron.schedule('*/10 * * * *', async () => {
+  console.log('Running cron job to sweep expired sessions...');
+  try {
+    const deleted = await prisma.session.deleteMany({
+      where: {
+        expiresAt: {
+          lt: new Date()
+        }
+      }
+    });
+    if (deleted.count > 0) {
+      console.log(`Successfully swept ${deleted.count} expired sessions from database.`);
+    }
+  } catch (error) {
+    console.error('Error sweeping expired sessions:', error);
+  }
 });

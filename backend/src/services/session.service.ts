@@ -63,11 +63,15 @@ export const initializeSession = async (hostId: string, addressId?: string, swig
     }
   }
 
+  // 3 hours from now
+  const expiresAt = new Date(Date.now() + 3 * 60 * 60 * 1000);
+
   // Create session in database
   const session = await prisma.session.create({
     data: {
       hostId,
       address: fullAddressDetails, // Store full serialized address object
+      expiresAt,
       participants: {
         create: {
           nickname: hostId,

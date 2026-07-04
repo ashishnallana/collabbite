@@ -13,6 +13,7 @@ model Session {
   status       SessionStatus @default(WAITING)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
+  expiresAt    DateTime?     // 3 hours expiry
   
   participants Participant[]
   items        CartItem[]

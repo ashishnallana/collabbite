@@ -16,6 +16,7 @@ export default function SessionLobby({ params }: { params: Promise<{ id: string 
   const [loading, setLoading] = useState(true);
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isHost, setIsHost] = useState(false);
+  const [timeLeft, setTimeLeft] = useState<string>('');
 
   useEffect(() => {
     // We will determine isHost inside fetchSession
@@ -36,6 +37,30 @@ export default function SessionLobby({ params }: { params: Promise<{ id: string 
       newSocket.disconnect();
     };
   }, [sessionId]);
+
+  useEffect(() => {
+    if (!session?.expiresAt || !isHost) return;
+    
+    const interval = setInterval(() => {
+      const now = new Date().getTime();
+      const expiry = new Date(session.expiresAt).getTime();
+      const diff = expiry - now;
+      
+      if (diff <= 0) {
+        setTimeLeft('Expired');
+        clearInterval(interval);
+        return;
+      }
+      
+      const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const s = Math.floor((diff % (1000 * 60)) / 1000);
+      
+      setTimeLeft(`${h}h ${m}m ${s}s`);
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [session, isHost]);
 
   const fetchSession = async () => {
     try {
@@ -85,7 +110,13 @@ export default function SessionLobby({ params }: { params: Promise<{ id: string 
         </div>
       )}
 
-      <div className="card text-center">
+      {isHost && timeLeft && (
+        <div style={{ textAlign: 'center', marginBottom: '1.5rem', color: 'var(--danger)', fontWeight: 'bold' }}>
+          Session expires in: {timeLeft}
+        </div>
+      )}
+
+      <div className="card mb-4 text-center">
         <p>Invite friends with this code:</p>
         <h1 style={{ letterSpacing: '2px', background: 'var(--surface-light)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>
           {sessionId}
