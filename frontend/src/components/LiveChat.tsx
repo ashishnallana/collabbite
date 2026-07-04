@@ -28,7 +28,7 @@ export default function LiveChat({ sessionId }: { sessionId: string }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const nickname = typeof window !== 'undefined' ? localStorage.getItem('nickname') || 'Guest' : 'Guest';
+  const nickname = typeof window !== 'undefined' ? localStorage.getItem(`nickname_${sessionId}`) || 'Guest' : 'Guest';
 
   useEffect(() => {
     const newSocket = io(SOCKET_URL);

@@ -36,7 +36,7 @@ export default function SearchRestaurants({ params }: { params: Promise<{ id: st
     setLoading(true);
     setSearched(true);
     try {
-      const nickname = localStorage.getItem('nickname') || 'Someone';
+      const nickname = localStorage.getItem(`nickname_${sessionId}`) || 'Someone';
       socket?.emit('activity', { sessionId, message: `${nickname} is looking for ${query}` });
       
       const res = await axios.get(`${API_URL}/restaurants/search`, {

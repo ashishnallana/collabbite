@@ -23,7 +23,7 @@ export default function CartPage({ params }: { params: Promise<{ id: string }> }
   const [myParticipantId, setMyParticipantId] = useState<string | null>(null);
 
   useEffect(() => {
-    const pId = localStorage.getItem('participantId');
+    const pId = localStorage.getItem(`participantId_${sessionId}`);
     setMyParticipantId(pId);
     
     fetchData();
@@ -55,7 +55,7 @@ export default function CartPage({ params }: { params: Promise<{ id: string }> }
         const sessionData = sessionRes.data.data;
         setSession(sessionData);
         // Correctly detect host by checking participant role
-        const pId = localStorage.getItem('participantId');
+        const pId = localStorage.getItem(`participantId_${sessionId}`);
         const myP = sessionData.participants?.find((p: any) => p.id === pId);
         if (myP && myP.role === 'HOST') {
           setIsHost(true);
@@ -73,7 +73,7 @@ export default function CartPage({ params }: { params: Promise<{ id: string }> }
       const qs = myParticipantId ? `?participantId=${myParticipantId}` : '';
       await axios.delete(`${API_URL}/cart/${itemId}${qs}`);
       
-      const nickname = localStorage.getItem('nickname') || 'Someone';
+      const nickname = localStorage.getItem(`nickname_${sessionId}`) || 'Someone';
       socket?.emit('activity', { sessionId, message: `${nickname} removed ${itemName} from the cart` });
       socket?.emit('cart-updated', sessionId);
       fetchData();
@@ -88,7 +88,7 @@ export default function CartPage({ params }: { params: Promise<{ id: string }> }
     try {
       await axios.post(`${API_URL}/sessions/ready`, { participantId: myParticipantId });
       
-      const nickname = localStorage.getItem('nickname') || 'Someone';
+      const nickname = localStorage.getItem(`nickname_${sessionId}`) || 'Someone';
       const myP = session?.participants?.find((p:any) => p.id === myParticipantId);
       const wasReady = myP?.isReady;
       

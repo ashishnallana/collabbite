@@ -36,7 +36,7 @@ export default function RestaurantMenu({ params }: { params: Promise<{ id: strin
   };
 
   const addToCart = async (item: any) => {
-    const participantId = localStorage.getItem('participantId');
+    const participantId = localStorage.getItem(`participantId_${sessionId}`);
     if (!participantId && false) { // Skip check for MVP host
       alert("Participant ID missing");
       return;
@@ -58,7 +58,7 @@ export default function RestaurantMenu({ params }: { params: Promise<{ id: strin
       // Notify others
       const socket = io(SOCKET_URL);
       socket.on('connect', () => {
-        const nickname = localStorage.getItem('nickname') || 'Someone';
+        const nickname = localStorage.getItem(`nickname_${sessionId}`) || 'Someone';
         socket.emit('activity', { sessionId, message: `${nickname} added ${item.name} to the cart!` });
         socket.emit('cart-updated', sessionId);
         setTimeout(() => socket.disconnect(), 200);

@@ -104,9 +104,11 @@ export default function Home() {
         swiggyToken
       });
       if (res.data.success) {
-        localStorage.setItem('participantId', res.data.data.participants[0].id);
-        localStorage.setItem('nickname', hostName);
-        router.push(`/session/${res.data.data.id}`);
+        const newSessionId = res.data.data.id;
+        localStorage.setItem(`participantId_${newSessionId}`, res.data.data.participants[0].id);
+        localStorage.setItem(`nickname_${newSessionId}`, hostName);
+        
+        router.push(`/session/${newSessionId}`);
       }
     } catch (err) {
       console.error(err);
@@ -126,8 +128,8 @@ export default function Home() {
         nickname
       });
       if (res.data.success) {
-        localStorage.setItem('participantId', res.data.data.id);
-        localStorage.setItem('nickname', res.data.data.nickname);
+        localStorage.setItem(`participantId_${joinId}`, res.data.data.id);
+        localStorage.setItem(`nickname_${joinId}`, res.data.data.nickname);
         
         // Notify others that a new user joined
         const socket = io(SOCKET_URL);

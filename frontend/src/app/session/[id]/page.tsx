@@ -68,7 +68,7 @@ export default function SessionLobby({ params }: { params: Promise<{ id: string 
       const sessionData = res.data.data;
       setSession(sessionData);
 
-      const pId = localStorage.getItem('participantId');
+      const pId = localStorage.getItem(`participantId_${sessionId}`);
       const myP = sessionData.participants?.find((p: any) => p.id === pId);
       if (myP && myP.role === 'HOST') {
         setIsHost(true);
