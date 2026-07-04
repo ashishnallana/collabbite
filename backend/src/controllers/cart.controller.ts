@@ -23,7 +23,7 @@ export const removeItem = async (req: Request, res: Response) => {
   try {
     const { cartItemId } = req.params;
     const { participantId } = req.query;
-    await cartService.removeItemFromCart(cartItemId, participantId as string);
+    await cartService.removeItemFromCart(cartItemId as string, participantId as string);
     res.status(200).json({ success: true, message: "Item removed" });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
@@ -33,7 +33,7 @@ export const removeItem = async (req: Request, res: Response) => {
 export const getCart = async (req: Request, res: Response) => {
   try {
     const { sessionId } = req.params;
-    const cart = await cartService.getSessionCart(sessionId);
+    const cart = await cartService.getSessionCart(sessionId as string);
     res.status(200).json({ success: true, data: cart });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });

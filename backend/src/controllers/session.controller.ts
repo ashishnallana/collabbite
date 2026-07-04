@@ -39,7 +39,7 @@ export const joinSession = async (req: Request, res: Response) => {
 export const getSession = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const session = await sessionService.getSessionDetails(id);
+    const session = await sessionService.getSessionDetails(id as string);
     if (!session) {
       return res.status(404).json({ success: false, message: "Session not found" });
     }

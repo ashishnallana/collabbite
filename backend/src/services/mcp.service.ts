@@ -38,7 +38,7 @@ class SwiggyMCPService {
         }, { headers });
 
         if (initRes.headers['mcp-session-id']) {
-          sessionId = initRes.headers['mcp-session-id'];
+          sessionId = initRes.headers['mcp-session-id'] as string;
           this.sessionIds[userKey] = sessionId;
           
           // Send notifications/initialized (fire and forget)
@@ -67,7 +67,7 @@ class SwiggyMCPService {
 
       // Update session ID if it changed
       if (response.headers['mcp-session-id']) {
-        this.sessionIds[userKey] = response.headers['mcp-session-id'];
+        this.sessionIds[userKey] = response.headers['mcp-session-id'] as string;
       }
 
       const data = response.data;

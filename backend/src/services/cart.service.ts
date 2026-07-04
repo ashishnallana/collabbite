@@ -78,8 +78,8 @@ export const checkoutSession = async (sessionId: string) => {
   if (session.items.length === 0) throw new Error("Cart is empty");
 
   // Assuming all items are from the same restaurant for checkout
-  const restaurantId = session.items[0].restaurantId;
-  const restaurantName = session.items[0].restaurantName;
+  const restaurantId = session.items[0]!.restaurantId;
+  const restaurantName = session.items[0]!.restaurantName;
   const addressJson = JSON.parse(session.address);
   const addressId = addressJson.id;
 

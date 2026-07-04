@@ -17,7 +17,7 @@ export const searchRestaurants = async (req: Request, res: Response) => {
 
     const addressJson = JSON.parse(session.address);
     const addressId = addressJson.id;
-    const data = await restaurantService.searchRestaurants(addressJson.hostToken, addressId, String(query), Number(offset) || 0);
+    const data = await restaurantService.searchRestaurants(addressJson.hostToken as string, addressId, String(query), Number(offset) || 0);
     res.status(200).json({ success: true, data });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
@@ -32,14 +32,14 @@ export const getRestaurantMenu = async (req: Request, res: Response) => {
     }
 
     // Get the addressId from the session
-    const session = await prisma.session.findUnique({ where: { id: sessionId } });
+    const session = await prisma.session.findUnique({ where: { id: sessionId as string } });
     if (!session) {
       return res.status(404).json({ success: false, message: "Session not found" });
     }
 
     const addressJson = JSON.parse(session.address);
     const addressId = addressJson.id;
-    const data = await restaurantService.getRestaurantMenu(addressJson.hostToken, addressId, restaurantId);
+    const data = await restaurantService.getRestaurantMenu(addressJson.hostToken as string, addressId, restaurantId as string);
     res.status(200).json({ success: true, data });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
