@@ -19,7 +19,9 @@ export const startLogin = async (req: Request, res: Response) => {
   authStore[hostId] = { verifier };
 
   // Generate OAuth URL
-  const redirectUri = encodeURIComponent('http://localhost:5000/api/auth/callback');
+  const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
+  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+  const redirectUri = encodeURIComponent(`${backendUrl}/api/auth/callback`);
   const url = `https://mcp.swiggy.com/auth/authorize?response_type=code&client_id=swiggy-mcp&redirect_uri=${redirectUri}&state=${encodeURIComponent(hostId)}&code_challenge=${challenge}&code_challenge_method=S256&scope=mcp:tools mcp:resources mcp:prompts`;
 
   return res.status(200).json({ success: true, url });
@@ -34,18 +36,20 @@ export const oauthCallback = async (req: Request, res: Response) => {
   }
 
   try {
+    const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     const tokenRes = await axios.post('https://mcp.swiggy.com/auth/token', new URLSearchParams({
       grant_type: 'authorization_code',
       client_id: 'swiggy-mcp',
       code: String(code),
-      redirect_uri: 'http://localhost:5000/api/auth/callback',
+      redirect_uri: `${backendUrl}/api/auth/callback`,
       code_verifier: authStore[hostId].verifier
     }).toString(), {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     });
 
     // Redirect back to frontend with the token
-    res.redirect(`http://localhost:3000?authSuccess=true&hostId=${encodeURIComponent(hostId)}&token=${encodeURIComponent(tokenRes.data.access_token)}`);
+    res.redirect(`${frontendUrl}?authSuccess=true&hostId=${encodeURIComponent(hostId)}&token=${encodeURIComponent(tokenRes.data.access_token)}`);
   } catch (err: any) {
     console.error("Token exchange failed", err.response?.data || err.message);
     res.status(500).send("Failed to authenticate with Swiggy.");

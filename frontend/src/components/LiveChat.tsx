@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { Send, MessageCircle, X } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
 
-const SOCKET_URL = 'http://localhost:5000';
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
 
 interface ChatMessage {
   sender: string;

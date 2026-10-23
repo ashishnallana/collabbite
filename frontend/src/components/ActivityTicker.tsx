@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Activity } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
 
-const SOCKET_URL = 'http://localhost:5000';
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
 
 export default function ActivityTicker({ sessionId }: { sessionId: string }) {
   const [message, setMessage] = useState<string | null>(null);

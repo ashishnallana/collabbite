@@ -6,8 +6,8 @@ import axios from 'axios';
 import { MapPin, Pizza, Users, LogIn } from 'lucide-react';
 import { io } from 'socket.io-client';
 
-const API_URL = 'http://localhost:5000/api';
-const SOCKET_URL = 'http://localhost:5000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
 
 export default function Home() {
   const router = useRouter();

@@ -6,8 +6,8 @@ import axios from 'axios';
 import { ArrowLeft, Trash2, CreditCard, CheckCircle } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
 
-const API_URL = 'http://localhost:5000/api';
-const SOCKET_URL = 'http://localhost:5000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:5000';
 
 export default function CartPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
